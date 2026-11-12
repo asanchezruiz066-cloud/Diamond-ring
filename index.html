@@ -1,0 +1,177 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diamond Ring 💎</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #020204;
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+</style>
+</head>
+
+<body>
+<canvas id="ring"></canvas>
+
+<script>
+const canvas = document.getElementById("ring");
+const ctx = canvas.getContext("2d");
+
+let W, H, cols, rows;
+let angle = 0;
+
+const chars = " .:-=+*#%@&$";
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  W = innerWidth;
+  H = innerHeight;
+
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  cols = Math.floor(W / 7);
+  rows = Math.floor(H / 12);
+}
+
+addEventListener("resize", resize);
+resize();
+
+// Estrellas del fondo
+const stars = Array.from({length: 100}, () => ({
+  x: Math.random(),
+  y: Math.random(),
+  a: Math.random()
+}));
+
+function draw() {
+  ctx.fillStyle = "#020204";
+  ctx.fillRect(0, 0, W, H);
+
+  // Fondo de partículas
+  stars.forEach(s => {
+    const pulse = 0.3 + Math.abs(Math.sin(angle * 2 + s.a * 10)) * 0.7;
+    ctx.fillStyle = `rgba(180,200,255,${pulse * 0.5})`;
+    ctx.fillRect(s.x * W, s.y * H, 1.3, 1.3);
+  });
+
+  const R = 1;
+  const r = 0.25;
+  const points = [];
+  const zBuffer = new Map();
+
+  const scale = Math.min(
+    cols * 0.39 / (R + r),
+    rows * 0.38 / (R + r)
+  );
+
+  // Crear el anillo 3D
+  for (let i = 0; i < 150; i++) {
+    const u = i / 150 * Math.PI * 2;
+
+    for (let j = 0; j < 36; j++) {
+      const v = j / 36 * Math.PI * 2;
+
+      let x = (R + r * Math.cos(v)) * Math.cos(u);
+      let y = (R + r * Math.cos(v)) * Math.sin(u) * 1.12;
+      let z = r * Math.sin(v);
+
+      // Rotación 3D
+      const ca = Math.cos(angle);
+      const sa = Math.sin(angle);
+
+      let x1 = x * ca - z * sa;
+      let z1 = x * sa + z * ca;
+
+      const tilt = 0.28;
+      let y1 = y * Math.cos(tilt) - z1 * Math.sin(tilt);
+      let z2 = y * Math.sin(tilt) + z1 * Math.cos(tilt);
+
+      const perspective = 3.8 / (3.8 + z2);
+
+      let px = Math.round(cols / 2 + x1 * scale * perspective);
+      let py = Math.round(rows / 2 + y1 * scale * perspective);
+
+      if (px < 0 || px >= cols || py < 0 || py >= rows)
+        continue;
+
+      const key = py * cols + px;
+
+      if (zBuffer.has(key) && zBuffer.get(key) > z2)
+        continue;
+
+      zBuffer.set(key, z2);
+
+      const light = Math.max(
+        0,
+        Math.min(1, 0.5 + 0.5 * Math.cos(v + u * 2 + angle))
+      );
+
+      const brightness = Math.floor(light * 10);
+
+      points.push({
+        px, py, z2,
+        char: chars[brightness]
+      });
+    }
+  }
+
+  // Dibujar caracteres ASCII
+  ctx.font = "10px monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  points.forEach(p => {
+    const glow = Math.max(0.15, 0.8 + p.z2 * 0.4);
+
+    ctx.fillStyle = `rgba(215,225,255,${glow})`;
+    ctx.shadowColor = "#aabfff";
+    ctx.shadowBlur = 5;
+
+    ctx.fillText(
+      p.char,
+      p.px * 7 + 3,
+      p.py * 12 + 6
+    );
+  });
+
+  // Destellos
+  ctx.shadowBlur = 0;
+
+  for (let i = 0; i < 5; i++) {
+    const x = W / 2 + Math.sin(angle * 2 + i) * W * 0.25;
+    const y = H / 2 + Math.cos(angle + i) * H * 0.28;
+
+    ctx.fillStyle = "rgba(220,235,255,0.7)";
+    ctx.font = "16px monospace";
+    ctx.fillText("+", x, y);
+  }
+
+  angle += 0.009;
+
+  requestAnimationFrame(draw);
+}
+
+draw();
+</script>
+</body>
+</html>
